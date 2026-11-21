@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1f6feb">
+<title>Погрузка машин</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--bg:#f4f5f7;--card:#fff;--text:#16181d;--muted:#6b7280;--accent:#1f6feb;--accent-t:#fff;--line:#e3e5ea}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#101216;--card:#1a1d23;--text:#eceef2;--muted:#9097a3;--accent:#4c8dff;--accent-t:#fff;--line:#2a2e36}}
+:root[data-theme="dark"]{--bg:#101216;--card:#1a1d23;--text:#eceef2;--muted:#9097a3;--accent:#4c8dff;--accent-t:#fff;--line:#2a2e36}
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:480px;margin:0 auto;padding:20px 16px 110px}
+h1{font-size:24px;margin:4px 0 16px}
+.row{display:flex;align-items:center;width:100%;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:12px;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.row .cat{font-weight:700;font-size:18px;min-width:88px}
+.row .arrow{color:var(--muted);margin:0 10px;font-size:20px}
+.row .who{flex:1}
+.row .who b{font-size:18px;color:var(--accent)}
+.row .who.empty b{color:var(--muted);font-weight:400}
+.row small{display:block;color:var(--muted);font-size:13px}
+.bar{position:fixed;left:0;right:0;bottom:0;padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));background:var(--bg);border-top:1px solid var(--line)}
+.bar button{display:block;width:100%;max-width:480px;margin:0 auto;padding:16px;border:0;border-radius:14px;background:var(--accent);color:var(--accent-t);font:600 17px system-ui,sans-serif}
+.bar button:disabled{opacity:.45}
+.msg{text-align:center;color:var(--muted);font-size:13px;margin-top:6px;min-height:18px}
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-end;z-index:5}
+.ov.on{display:flex}
+.sheet{width:100%;max-width:480px;margin:0 auto;background:var(--card);border-radius:20px 20px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px))}
+.sheet h2{margin:0 0 12px;font-size:18px}
+.sheet{max-height:90vh;overflow:auto}
+.lbl{display:block;color:var(--muted);font-size:13px;margin:4px 0 6px}
+.dt{display:block;width:100%;padding:14px;margin-bottom:12px;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--text);font:600 17px system-ui,sans-serif;color-scheme:light dark}
+.opt.done{background:var(--accent);color:var(--accent-t);text-align:center;border-color:var(--accent);margin-top:6px}
+.opt{display:block;width:100%;padding:16px;margin-bottom:8px;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--text);font:600 17px system-ui,sans-serif;text-align:left}
+.opt.sel{border-color:var(--accent);background:var(--accent);color:var(--accent-t)}
+</style>
+</head>
+<body>
+<main>
+<h1>Погрузка машин</h1>
+<div id="list"></div>
+<div class="msg" id="msg"></div>
+</main>
+<div class="bar"><button id="save" disabled>Сохранить</button></div>
+<div class="ov" id="ov"><div class="sheet" id="sheet"></div></div>
+<script>
+var CATS=[
+ {id:"car",name:"Машина",people:["Слава","Антон","Артём","Серёга"]},
+ {id:"shovel",name:"Лопата",people:["Слава","Антон","Артём"]},
+ {id:"kamaz",name:"Камаз",people:["Слава","Антон","Артём"]},
+ {id:"truck",name:"Фура",people:["Слава","Антон","Артём"]}
+];
+var KEY="pogruzka_v1",saved={},draft={};
+try{saved=JSON.parse(localStorage.getItem(KEY)||"{}")}catch(e){saved={}}
+draft=JSON.parse(JSON.stringify(saved));
+function nextOf(c,n){var i=c.people.indexOf(n);return i<0?null:c.people[(i+1)%c.people.length]}
+function pad(n){return n<10?'0'+n:''+n}
+function todayIso(){var t=new Date();return t.getFullYear()+'-'+pad(t.getMonth()+1)+'-'+pad(t.getDate())}
+function fmt(iso){var p=iso.split('-');return new Date(+p[0],+p[1]-1,+p[2]).toLocaleDateString('ru-RU',{day:'numeric',month:'short',year:'numeric'})}
+function dateStr(d){return d.iso?fmt(d.iso):(d.date||'')}
+function dirty(){return JSON.stringify(draft)!==JSON.stringify(saved)}
+function render(){
+ var h="";
+ CATS.forEach(function(c){
+  var d=draft[c.id],nx=d?nextOf(c,d.name):null;
+  h+='<button class="row" data-id="'+c.id+'"><span class="cat">'+c.name+'</span><span class="arrow">→</span>'+
+   '<span class="who'+(d?'':' empty')+'">'+(d?'грузил <b>'+d.name+'</b><small>следующий: '+nx+(dateStr(d)?' · '+dateStr(d):'')+'</small>':'<b>выбрать</b>')+'</span></button>';
+ });
+ document.getElementById("list").innerHTML=h;
+ document.getElementById("save").disabled=!dirty();
+ document.querySelectorAll(".row").forEach(function(b){b.onclick=function(){openSheet(b.getAttribute("data-id"))}});
+}
+function openSheet(id){
+ var c=CATS.filter(function(x){return x.id===id})[0],d0=draft[id]||{},iso=d0.iso||todayIso();
+ var h="<h2>"+c.name+"</h2><label class=\"lbl\">Дата</label><input type=\"date\" class=\"dt\" id=\"dt\" value=\""+iso+"\"><label class=\"lbl\">Очерёдность</label>";
+ c.people.forEach(function(p){h+='<button class="opt'+(draft[id]&&draft[id].name===p?' sel':'')+'" data-p="'+p+'">'+p+'</button>'});
+ h+='<button class="opt done" id="done">Готово</button>';
+ var s=document.getElementById("sheet");s.innerHTML=h;
+ document.getElementById("dt").onchange=function(){
+  if(this.value)iso=this.value;
+  if(draft[id]){draft[id].iso=iso;draft[id].date=fmt(iso)}
+  render();
+ };
+ s.querySelectorAll(".opt[data-p]").forEach(function(b){b.onclick=function(){
+  draft[id]={name:b.getAttribute("data-p"),iso:iso,date:fmt(iso)};
+  s.querySelectorAll(".opt[data-p]").forEach(function(o){o.classList.toggle("sel",o===b)});
+  document.getElementById("msg").textContent="";
+  render();
+ }});
+ document.getElementById("done").onclick=closeSheet;
+ document.getElementById("ov").classList.add("on");
+}
+function closeSheet(){document.getElementById("ov").classList.remove("on")}
+document.getElementById("ov").onclick=function(e){if(e.target===this)closeSheet()};
+var store=null;
+document.getElementById("save").onclick=function(){
+ saved=JSON.parse(JSON.stringify(draft));
+ try{localStorage.setItem(KEY,JSON.stringify(saved))}catch(e){}
+ var m=document.getElementById("msg");
+ if(store){
+  m.textContent="Сохраняю…";
+  store.set(saved).then(function(){m.textContent="Сохранено и синхронизировано ✓"},function(){m.textContent="Сохранено на этом телефоне, синхронизация не удалась"});
+ }else m.textContent="Сохранено на этом устройстве (без синхронизации)";
+ render();
+};
+render();
+if(window.claude&&claude.use){claude.use("db").then(function(db){
+ if(!db)return;
+ store=db.doc("data/state");
+ store.onSnapshot(function(snap){
+  if(!snap.exists)return;
+  var d=snap.data()||{},remote={};
+  CATS.forEach(function(c){if(d[c.id])remote[c.id]={name:d[c.id].name,iso:d[c.id].iso,date:d[c.id].date}});
+  if(JSON.stringify(remote)===JSON.stringify(saved))return;
+  var wasDirty=dirty();
+  saved=remote;
+  try{localStorage.setItem(KEY,JSON.stringify(saved))}catch(e){}
+  if(!wasDirty)draft=JSON.parse(JSON.stringify(saved));
+  render();
+ },function(){});
+},function(){})}
+</script>
+</body>
+</html>
