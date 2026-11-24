@@ -66,7 +66,7 @@ function ago(iso){
 
 function render(){
  // Шапка таблицы
- var h='<div class="board"><div class="bh"><span>Категория</span><span>Следующий</span><span>Грузил последним</span></div>';
+ var h='<div class="board"><div class="bh"><span>Тип</span><span>Грузит</span><span>Грузил</span></div>';
  // Для каждой категории строка: иконка и название | следующий человек | кто грузил и когда
  CATS.forEach(function(c){
   var d=draft[c.id];
