@@ -4,7 +4,7 @@
 
 // Категории и люди в них. Чтобы добавить человека или категорию, правь только этот список.
 var CATS=[
- {id:"car",name:"Машина",people:["Слава","Антон","Артём","Серёга"]},
+ {id:"car",name:"Газель",people:["Слава","Антон","Артём","Серёга"]},
  {id:"shovel",name:"Лопата",people:["Слава","Антон","Артём"]},
  {id:"kamaz",name:"Камаз",people:["Слава","Антон","Артём"]},
  {id:"truck",name:"Фура",people:["Слава","Артём","Антон"]}
@@ -66,7 +66,7 @@ function ago(iso){
 
 function render(){
  // Шапка таблицы
- var h='<div class="board"><div class="bh"><span>Тип</span><span>Грузит</span><span>Грузил</span></div>';
+ var h='<div class="board"><div class="bh"><span>Вид машины</span><span>Грузит</span><span>Грузил</span></div>';
  // Для каждой категории строка: иконка и название | следующий человек | кто грузил и когда
  CATS.forEach(function(c){
   var d=draft[c.id];
