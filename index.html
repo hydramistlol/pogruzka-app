@@ -34,11 +34,11 @@ h1{font-size:24px;margin:4px 0;flex:1}
 .x{width:40px;height:40px;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--text);font-size:20px;line-height:1}
 .lbl{display:block;color:var(--muted);font-size:13px;margin:4px 0 6px}
 .dt{display:block;width:100%;padding:14px;margin-bottom:12px;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--text);font:600 17px system-ui,sans-serif}
-.opt{display:block;width:100%;padding:16px;margin-bottom:8px;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--text);font:600 17px system-ui,sans-serif;text-align:left}
+.opt{display:flex;align-items:center;justify-content:space-between;width:100%;padding:16px;margin-bottom:8px;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--text);font:600 17px system-ui,sans-serif;text-align:left}
 .opt.done{border-color:var(--accent);background:var(--accent);color:var(--accent-t)}
 .opt.sel{border:2px solid var(--accent);padding:15px;color:var(--accent)}
-.opt.sel::after{content:"✓";float:right}
-.opt.done{text-align:center;margin-top:6px}
+.opt.sel::after{content:"✓"}
+.opt.done{justify-content:center;text-align:center;margin-top:6px}
 .hint{color:var(--muted);font-size:13px;margin:0 0 10px}
 button{cursor:pointer}
 .bar button:disabled{cursor:not-allowed}
