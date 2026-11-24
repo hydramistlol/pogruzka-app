@@ -7,7 +7,7 @@ var CATS=[
  {id:"car",name:"Машина",people:["Слава","Антон","Артём","Серёга"]},
  {id:"shovel",name:"Лопата",people:["Слава","Антон","Артём"]},
  {id:"kamaz",name:"Камаз",people:["Слава","Антон","Артём"]},
- {id:"truck",name:"Фура",people:["Слава","Антон","Артём"]}
+ {id:"truck",name:"Фура",people:["Слава","Артём","Антон"]}
 ];
 // Имена ячеек в памяти браузера: KEY хранит выбор, GK хранит настройки GitHub
 var KEY="pogruzka_v2",GK="pogruzka_gh",sha=null;
