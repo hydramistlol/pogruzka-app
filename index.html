@@ -37,7 +37,9 @@ h1{font-size:24px;margin:4px 0;flex:1}
 .opt{display:flex;align-items:center;justify-content:space-between;width:100%;padding:16px;margin-bottom:8px;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--text);font:600 17px system-ui,sans-serif;text-align:left}
 .opt.done{border-color:var(--accent);background:var(--accent);color:var(--accent-t)}
 .opt.sel{border:2px solid var(--accent);padding:15px;color:var(--accent)}
-.opt.sel::after{content:"✓"}
+.opt{line-height:20px}
+.opt[data-p]::after{content:"✓";visibility:hidden;line-height:20px}
+.opt[data-p].sel::after{visibility:visible}
 .opt.done{justify-content:center;text-align:center;margin-top:6px}
 .hint{color:var(--muted);font-size:13px;margin:0 0 10px}
 button{cursor:pointer}
