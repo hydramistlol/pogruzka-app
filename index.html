@@ -29,12 +29,23 @@ h1{font-size:24px;margin:4px 0;flex:1}
 .ov.on{display:flex}
 .sheet{width:100%;max-width:480px;margin:0 auto;background:var(--card);border-radius:20px 20px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px));max-height:90vh;overflow:auto}
 .sheet h2{margin:0 0 12px;font-size:18px}
+.hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}.hd h2{margin:0}
+.x{width:40px;height:40px;border:0;border-radius:12px;background:var(--bg);color:var(--text);font-size:20px;line-height:1}
 .lbl{display:block;color:var(--muted);font-size:13px;margin:4px 0 6px}
 .dt{display:block;width:100%;padding:14px;margin-bottom:12px;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--text);font:600 17px system-ui,sans-serif}
 .opt{display:block;width:100%;padding:16px;margin-bottom:8px;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--text);font:600 17px system-ui,sans-serif;text-align:left}
 .opt.sel,.opt.done{border-color:var(--accent);background:var(--accent);color:var(--accent-t)}
 .opt.done{text-align:center;margin-top:6px}
 .hint{color:var(--muted);font-size:13px;margin:0 0 10px}
+button{cursor:pointer}
+.bar button:disabled{cursor:not-allowed}
+button:focus-visible,.dt:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (hover:hover){
+.x:hover,.ic:hover{background:var(--line)}
+.row:hover{border-color:var(--accent)}
+.opt:not(.sel):not(.done):hover{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 15%,var(--bg));box-shadow:0 0 0 1px var(--accent)}
+.opt.sel:hover,.opt.done:hover,.bar button:not(:disabled):hover{filter:brightness(1.12)}
+}
 </style>
 </head>
 <body>
@@ -80,7 +91,7 @@ function closeSheet(){$("ov").classList.remove("on")}
 $("ov").onclick=function(e){if(e.target===this)closeSheet()};
 function openSheet(id){
  var c=CATS.filter(function(x){return x.id===id})[0],d0=draft[id]||{},iso=d0.iso||todayIso();
- var h='<h2>'+c.name+'</h2><label class="lbl">Дата</label><input type="date" class="dt" id="dt" value="'+iso+'"><label class="lbl">Очерёдность</label>';
+ var h='<div class="hd"><h2>'+c.name+'</h2><button class="x" id="x" aria-label="Закрыть">✕</button></div><label class="lbl">Дата</label><input type="date" class="dt" id="dt" value="'+iso+'"><label class="lbl">Очерёдность</label>';
  c.people.forEach(function(p){h+='<button class="opt'+(d0.name===p?" sel":"")+'" data-p="'+p+'">'+p+'</button>'});
  h+='<button class="opt done" id="done">Готово</button>';
  var s=$("sheet");s.innerHTML=h;
@@ -90,7 +101,7 @@ function openSheet(id){
   s.querySelectorAll(".opt[data-p]").forEach(function(o){o.classList.toggle("sel",o===b)});
   msg("");render();
  }});
- $("done").onclick=closeSheet;$("ov").classList.add("on");
+ $("done").onclick=closeSheet;$("x").onclick=closeSheet;$("ov").classList.add("on");
 }
 /* ---- GitHub ---- */
 function ready(){return cfg.repo&&cfg.token}
@@ -137,14 +148,15 @@ $("save").onclick=async function(){
 };
 $("ref").onclick=function(){sync(false)};
 $("cfg").onclick=function(){
- var h='<h2>Синхронизация с GitHub</h2><p class="hint">Данные хранятся в файле в вашем репозитории. Токен остаётся только на этом телефоне.</p>'+
+ var h='<div class="hd"><h2>Синхронизация с GitHub</h2><button class="x" id="x2" aria-label="Закрыть">✕</button></div><p class="hint">Данные хранятся в файле в вашем репозитории. Токен остаётся только на этом телефоне.</p>'+
   '<label class="lbl">Репозиторий (владелец/название)</label><input class="dt" id="c1" value="'+(cfg.repo||"")+'" placeholder="ivan/pogruzka-data" autocapitalize="off">'+
   '<label class="lbl">Файл</label><input class="dt" id="c2" value="'+(cfg.path||"data.json")+'" autocapitalize="off">'+
   '<label class="lbl">Токен (Contents: Read and write)</label><input class="dt" id="c3" type="password" value="'+(cfg.token||"")+'" autocapitalize="off">'+
   '<button class="opt done" id="c4">Сохранить настройки</button><button class="opt" id="c5">Отключить GitHub</button>';
  $("sheet").innerHTML=h;
- $("c4").onclick=function(){cfg={repo:$("c1").value.trim(),path:$("c2").value.trim()||"data.json",token:$("c3").value.trim()};put(GK,cfg);closeSheet();sync(false)};
- $("c5").onclick=function(){cfg={};put(GK,cfg);closeSheet();msg("GitHub отключён")};
+ $("c4").onclick=function(){cfg={repo:$("c1").value.trim(),path:$("c2").value.trim()||"data.json",token:$("c3").value.trim()};put(GK,cfg);closeSheet();render();sync(false)};
+ $("c5").onclick=function(){cfg={};put(GK,cfg);closeSheet();render();msg("GitHub отключён")};
+ $("x2").onclick=closeSheet;
  $("ov").classList.add("on");
 };
 document.addEventListener("visibilitychange",function(){if(!document.hidden&&!dirty())sync(true)});
