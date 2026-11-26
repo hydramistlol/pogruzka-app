@@ -226,9 +226,9 @@ function renderBoard() {
   const boardHtml = `
     <div class="board">
       <div class="bh">
-        <span>Категория</span>
-        <span>Следующий</span>
-        <span>Грузил последним</span>
+        <span>Вид машины</span>
+        <span>Грузит</span>
+        <span>Грузил</span>
       </div>
       ${categoryRows}
     </div>
