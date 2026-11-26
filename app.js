@@ -25,7 +25,7 @@ const CATEGORY_ICONS = {
 };
 
 const SHIFT_HANDOVER_RULE =
-  "Если в конце смены человек передаёт машину или другой транспорт другому, это считается погрузкой со стороны передавшего. После этого очередь переходит к следующему человеку.";
+  "Если в конце смены грузящий передаёт машину другому, очередь переходит к следующему человеку.";
 
 let savedSelections = readStorage(STORAGE_KEYS.selections);
 let draftSelections = copyData(savedSelections);
