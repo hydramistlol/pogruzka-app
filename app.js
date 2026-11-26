@@ -8,7 +8,7 @@ const CATEGORIES = [
   { id: "car", name: "Машина", people: ["Слава", "Антон", "Артём", "Серёга"] },
   { id: "shovel", name: "Лопата", people: ["Слава", "Антон", "Артём"] },
   { id: "kamaz", name: "Камаз", people: ["Слава", "Антон", "Артём"] },
-  { id: "truck", name: "Фура", people: ["Слава", "Антон", "Артём"] },
+  { id: "truck", name: "Фура", people: ["Слава", "Артём", "Антон"] },
 ];
 
 const STORAGE_KEYS = {
