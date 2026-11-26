@@ -27,11 +27,12 @@ const CATEGORY_ICONS = {
 const SHIFT_HANDOVER_RULE =
   "Если в конце смены грузящий передаёт машину другому, очередь переходит к следующему человеку.";
 
-const FORCE_READ_ONLY_VIEW =
-  new URLSearchParams(window.location.search).get("view") === "1";
+const URL_PARAMETERS = new URLSearchParams(window.location.search);
+const FORCE_READ_ONLY_VIEW = URL_PARAMETERS.get("view") === "1";
+const SHOW_SETTINGS_IN_VIEW = URL_PARAMETERS.get("setup") === "1";
 
-// Без сохранённых GitHub-настроек приложение всегда открывается для просмотра.
-// Параметр ?view=1 принудительно включает этот режим и не читает токен.
+// Без GitHub-настроек открывается публичный просмотр.
+// Параметр ?view=1 включает его принудительно и не читает токен.
 let githubConfig = FORCE_READ_ONLY_VIEW ? {} : readStorage(STORAGE_KEYS.github);
 const IS_READ_ONLY_VIEW =
   FORCE_READ_ONLY_VIEW || !Boolean(githubConfig.repo && githubConfig.token);
@@ -42,6 +43,7 @@ let githubFileSha = null;
 if (IS_READ_ONLY_VIEW) {
   document.body.classList.add("read-only-view");
   getElement("save").parentElement.hidden = true;
+  getElement("cfg").hidden = !SHOW_SETTINGS_IN_VIEW;
 }
 
 
@@ -498,9 +500,7 @@ async function syncFromPublicData(showResult) {
       showMessage("Обновлено ✓");
     }
   } catch (error) {
-    if (showResult) {
-      showMessage("Не удалось загрузить общие данные (код " + error.message + ")");
-    }
+    showMessage("Не удалось загрузить общие данные (код " + error.message + ")");
   }
 }
 
