@@ -1,205 +1,634 @@
 /* ==========================================================
-   ЧАСТЬ 3. ДАННЫЕ И НАСТРОЙКИ (список категорий и людей)
+   1. ДАННЫЕ И НАСТРОЙКИ ПРИЛОЖЕНИЯ
    ========================================================== */
 
-// Категории и люди в них. Чтобы добавить человека или категорию, правь только этот список.
-var CATS=[
- {id:"car",name:"Газель",people:["Слава","Антон","Артём","Серёга"]},
- {id:"shovel",name:"Лопата",people:["Слава","Антон","Артём"]},
- {id:"kamaz",name:"Камаз",people:["Слава","Антон","Артём"]},
- {id:"truck",name:"Фура",people:["Слава","Артём","Антон"]}
+// Категории транспорта и люди в очереди.
+// Чтобы изменить список, отредактируйте только этот массив.
+const CATEGORIES = [
+  { id: "car", name: "Машина", people: ["Слава", "Антон", "Артём", "Серёга"] },
+  { id: "shovel", name: "Лопата", people: ["Слава", "Антон", "Артём"] },
+  { id: "kamaz", name: "Камаз", people: ["Слава", "Антон", "Артём"] },
+  { id: "truck", name: "Фура", people: ["Слава", "Антон", "Артём"] },
 ];
-// Имена ячеек в памяти браузера: KEY хранит выбор, GK хранит настройки GitHub
-var KEY="pogruzka_v2",GK="pogruzka_gh",sha=null;
 
-
-/* ==========================================================
-   ЧАСТЬ 4. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ (мелкие помощники)
-   ========================================================== */
-
-function $(i){return document.getElementById(i)}                 // короткая запись: найти элемент по id
-function copy(o){return JSON.parse(JSON.stringify(o))}           // сделать независимую копию данных
-function msg(t){$("msg").textContent=t}                          // показать сообщение под списком
-function load(k){try{return JSON.parse(localStorage.getItem(k)||"{}")}catch(e){return {}}}  // прочитать из памяти браузера
-function put(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}                // записать в память браузера
-
-// saved = то, что уже сохранено; draft = текущий выбор на экране (ещё не сохранён); cfg = настройки GitHub
-var saved=load(KEY),draft=copy(saved),cfg=load(GK);
-
-// Дата: добавить ноль, сегодняшняя дата, красивый вывод «21 нояб. 2026 г.»
-function pad(n){return n<10?"0"+n:""+n}
-function todayIso(){var t=new Date();return t.getFullYear()+"-"+pad(t.getMonth()+1)+"-"+pad(t.getDate())}
-function fmt(iso){if(!iso)return "";var p=iso.split("-");return new Date(+p[0],+p[1]-1,+p[2]).toLocaleDateString("ru-RU",{day:"numeric",month:"short",year:"numeric"})}
-
-// Кто следующий по кругу после выбранного человека
-function nextOf(c,n){var i=c.people.indexOf(n);return i<0?"—":c.people[(i+1)%c.people.length]}
-// Есть ли несохранённые изменения (тогда кнопка «Сохранить» активна)
-function dirty(){return JSON.stringify(draft)!==JSON.stringify(saved)}
-// Оставляет в данных только нужное (имя и дату), защита от мусора в файле
-function clean(o){var r={};CATS.forEach(function(c){var d=o&&o[c.id];if(d&&d.name)r[c.id]={name:d.name,iso:d.iso||""}});return r}
-
-
-/* ==========================================================
-   ЧАСТЬ 5. ГЛАВНЫЙ ЭКРАН (табло с категориями)
-   ========================================================== */
-
-// Иконки категорий (рисунки в формате SVG). Лопата: машина с опущенным задним бортом.
-var ICONS={
- car:'<svg viewBox="0 0 24 24"><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/><path d="M5 17H3v-5l2-5h10l4 5h2v5h-2M9 17h6M3 12h18M12 7v5"/></svg>',
- shovel:'<svg viewBox="0 0 24 24"><rect x="6" y="5" width="10" height="9" rx="1"/><path d="M16 8h3.5l2.5 3v3h-6"/><circle cx="10" cy="17" r="1.8"/><circle cx="19" cy="17" r="1.8"/><path d="M6 14l-3 3.5H1.5"/></svg>',
- kamaz:'<svg viewBox="0 0 24 24"><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/><path d="M5 17H3V6h11v11M9 17h6M14 9h4l3 4v4h-2"/></svg>',
- truck:'<svg viewBox="0 0 24 24"><rect x="1.5" y="5" width="13" height="9" rx="1"/><path d="M14.5 8H18l3 3v3h-6.5"/><circle cx="5" cy="17" r="1.7"/><circle cx="9.5" cy="17" r="1.7"/><circle cx="18.5" cy="17" r="1.7"/></svg>'
+const STORAGE_KEYS = {
+  selections: "pogruzka_v2",
+  github: "pogruzka_gh",
 };
 
-// Дата словами: сегодня, вчера, 3 дня назад. Если прошло больше недели, обычная дата («14 нояб.»)
-function ago(iso){
- if(!iso)return "";
- var p=iso.split("-"),t=new Date(),a=new Date(t.getFullYear(),t.getMonth(),t.getDate()),b=new Date(+p[0],+p[1]-1,+p[2]);
- var n=Math.round((a-b)/86400000);
- if(n===0)return "сегодня";
- if(n===1)return "вчера";
- if(n>=2&&n<=4)return n+" дня назад";
- if(n>=5&&n<=7)return n+" дней назад";
- var o={day:"numeric",month:"short"};if(b.getFullYear()!==a.getFullYear())o.year="numeric";
- return b.toLocaleDateString("ru-RU",o);
-}
+// Иконки категорий в формате SVG.
+const CATEGORY_ICONS = {
+  car: '<svg viewBox="0 0 24 24"><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/><path d="M5 17H3v-5l2-5h10l4 5h2v5h-2M9 17h6M3 12h18M12 7v5"/></svg>',
+  shovel: '<svg viewBox="0 0 24 24"><rect x="6" y="5" width="10" height="9" rx="1"/><path d="M16 8h3.5l2.5 3v3h-6"/><circle cx="10" cy="17" r="1.8"/><circle cx="19" cy="17" r="1.8"/><path d="M6 14l-3 3.5H1.5"/></svg>',
+  kamaz: '<svg viewBox="0 0 24 24"><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/><path d="M5 17H3V6h11v11M9 17h6M14 9h4l3 4v4h-2"/></svg>',
+  truck: '<svg viewBox="0 0 24 24"><rect x="1.5" y="5" width="13" height="9" rx="1"/><path d="M14.5 8H18l3 3v3h-6.5"/><circle cx="5" cy="17" r="1.7"/><circle cx="9.5" cy="17" r="1.7"/><circle cx="18.5" cy="17" r="1.7"/></svg>',
+};
 
-function render(){
- // Шапка таблицы
- var h='<div class="board"><div class="bh"><span>Вид машины</span><span>Грузит</span><span>Грузил</span></div>';
- // Для каждой категории строка: иконка и название | следующий человек | кто грузил и когда
- CATS.forEach(function(c){
-  var d=draft[c.id];
-  h+='<button class="row" data-id="'+c.id+'"><span class="cat">'+ICONS[c.id]+c.name+'</span>'+
-   (d?'<span class="nx"><span>'+nextOf(c,d.name)+'</span></span><span class="lst"><span class="n">'+d.name+'</span><span class="w">'+ago(d.iso)+'</span></span>'
-     :'<span class="nx empty">не выбрано</span><span class="lst empty">—</span>')+'</button>';
- });
- h+='</div>';
- $("list").innerHTML=h;
- $("save").disabled=!dirty();   // «Сохранить» активна, только если есть изменения
- // По нажатию на строку открываем окно выбора
- document.querySelectorAll(".row").forEach(function(b){b.onclick=function(){openSheet(b.getAttribute("data-id"))}});
-}
+const SHIFT_HANDOVER_RULE =
+  "Если в конце смены человек передаёт машину или другой транспорт другому, это считается погрузкой со стороны передавшего. После этого очередь переходит к следующему человеку.";
+
+let savedSelections = readStorage(STORAGE_KEYS.selections);
+let draftSelections = copyData(savedSelections);
+let githubConfig = readStorage(STORAGE_KEYS.github);
+let githubFileSha = null;
 
 
 /* ==========================================================
-   ЧАСТЬ 6. ОКНО ВЫБОРА (дата и очерёдность людей)
+   2. ОБЩИЕ ПОМОЩНИКИ
    ========================================================== */
 
-// Закрыть окно; также закрывается нажатием на тёмную область вокруг
-function closeSheet(){$("ov").classList.remove("on")}
-$("ov").onclick=function(e){if(e.target===this)closeSheet()};
-
-// Открыть окно для категории с номером id
-function openSheet(id){
- var c=CATS.filter(function(x){return x.id===id})[0],d0=draft[id]||{},iso=d0.iso||todayIso();
- // Собираем содержимое: заголовок с крестиком, поле даты, список людей, кнопка «Готово»
- var h='<div class="hd"><h2>'+c.name+'</h2><button class="x" id="x" aria-label="Закрыть">✕</button></div><label class="lbl">Дата</label><input type="date" class="dt" id="dt" value="'+iso+'"><label class="lbl">Очерёдность</label>';
- c.people.forEach(function(p){h+='<button class="opt'+(d0.name===p?" sel":"")+'" data-p="'+p+'">'+p+'</button>'});
- h+='<button class="opt done" id="done">Готово</button>';
- var s=$("sheet");s.innerHTML=h;
- // Смена даты: обновляем дату у уже выбранного человека
- $("dt").onchange=function(){if(this.value)iso=this.value;if(draft[id])draft[id].iso=iso;render()};
- // Нажатие на имя: записываем выбор в черновик и подсвечиваем это имя
- s.querySelectorAll(".opt[data-p]").forEach(function(b){b.onclick=function(){
-  draft[id]={name:b.getAttribute("data-p"),iso:iso};
-  s.querySelectorAll(".opt[data-p]").forEach(function(o){o.classList.toggle("sel",o===b)});
-  msg("");render();
- }});
- // «Готово» и крестик закрывают окно; затем показываем окно
- $("done").onclick=closeSheet;$("x").onclick=closeSheet;$("ov").classList.add("on");
+// Короткая функция для поиска элемента по его id.
+function getElement(id) {
+  return document.getElementById(id);
 }
 
-
-/* ==========================================================
-   ЧАСТЬ 7. СВЯЗЬ С GITHUB (чтение и запись файла с данными)
-   ========================================================== */
-
-function ready(){return cfg.repo&&cfg.token}   // настроен ли GitHub (есть репозиторий и токен)
-// Адрес файла с данными в репозитории и заголовки запроса (с токеном)
-function api(){return "https://api.github.com/repos/"+cfg.repo+"/contents/"+(cfg.path||"data.json")}
-function hdr(){return {"Authorization":"Bearer "+cfg.token,"Accept":"application/vnd.github+json"}}
-// Перевод текста в формат base64 и обратно (так GitHub хранит содержимое файла)
-function b64e(s){return btoa(unescape(encodeURIComponent(s)))}
-function b64d(s){return decodeURIComponent(escape(atob(s)))}
-
-// Скачать данные с GitHub. Если файла ещё нет, возвращает пустые данные
-async function pull(){
- var r=await fetch(api()+"?t="+Date.now(),{headers:hdr(),cache:"no-store"});
- if(r.status==404){sha=null;return {}}
- if(!r.ok)throw new Error(r.status);
- var j=await r.json();sha=j.sha;
- try{return clean(JSON.parse(b64d(j.content)))}catch(e){return {}}
+// JSON-копия нужна, чтобы черновик не менял уже сохранённые данные.
+function copyData(value) {
+  return JSON.parse(JSON.stringify(value));
 }
-// Записать данные в файл на GitHub
-async function push(obj){
- var body={message:"Погрузка машин: обновление",content:b64e(JSON.stringify(obj,null,1))};
- if(sha)body.sha=sha;
- var h=hdr();h["Content-Type"]="application/json";
- var r=await fetch(api(),{method:"PUT",headers:h,body:JSON.stringify(body)});
- if(!r.ok)throw new Error(r.status);
- sha=(await r.json()).content.sha;
-}
-// Обновить экран данными с GitHub. Если у тебя есть несохранённые правки, они не затираются
-async function sync(quiet){
- if(!ready()){if(!quiet)msg("GitHub не настроен: нажми ⚙");return}
- try{
-  var rem=await pull();
-  if(JSON.stringify(rem)!==JSON.stringify(saved)){
-   var wd=dirty();saved=rem;put(KEY,saved);
-   if(!wd)draft=copy(saved);render();
+
+// Безопасно читает объект из localStorage.
+function readStorage(key) {
+  try {
+    return JSON.parse(localStorage.getItem(key) || "{}");
+  } catch (error) {
+    return {};
   }
-  if(!quiet)msg("Обновлено ✓");
- }catch(e){if(!quiet)msg("Нет связи с GitHub (код "+e.message+")")}
+}
+
+// Сохраняет объект в localStorage. Ошибка хранилища не останавливает приложение.
+function writeStorage(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (error) {
+    // Браузер может запретить запись, например в приватном режиме.
+  }
+}
+
+// Экранирует текст перед вставкой в HTML.
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+// Показывает короткое сообщение под списком категорий.
+function showMessage(text) {
+  getElement("msg").textContent = text;
+}
+
+// Добавляет ведущий ноль к числу даты.
+function padNumber(number) {
+  return number < 10 ? `0${number}` : String(number);
+}
+
+// Возвращает сегодняшнюю дату в формате YYYY-MM-DD.
+function getTodayIsoDate() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = padNumber(today.getMonth() + 1);
+  const day = padNumber(today.getDate());
+
+  return `${year}-${month}-${day}`;
+}
+
+// Оставляет в данных только имя человека и дату погрузки.
+function cleanSelections(data) {
+  const cleanData = {};
+
+  CATEGORIES.forEach((category) => {
+    const selection = data && data[category.id];
+
+    if (selection && selection.name) {
+      cleanData[category.id] = {
+        name: selection.name,
+        iso: selection.iso || "",
+      };
+    }
+  });
+
+  return cleanData;
+}
+
+// Проверяет, есть ли изменения, которые ещё не сохранены.
+function hasUnsavedChanges() {
+  return JSON.stringify(draftSelections) !== JSON.stringify(savedSelections);
+}
+
+// Ищет категорию по её id.
+function findCategory(categoryId) {
+  return CATEGORIES.find((category) => category.id === categoryId);
 }
 
 
 /* ==========================================================
-   ЧАСТЬ 8. КНОПКИ: «Сохранить», ↻ и ⚙
+   3. ОЧЕРЕДЬ И ДАТЫ
    ========================================================== */
 
-// «Сохранить»: скачиваем свежие данные, меняем только то, что ты поменял, и отправляем на GitHub
-$("save").onclick=async function(){
- // Если GitHub не настроен, сохраняем только на этом телефоне
- if(!ready()){saved=copy(draft);put(KEY,saved);render();msg("Сохранено на этом телефоне (GitHub не настроен)");return}
- var changed=CATS.filter(function(c){return JSON.stringify(draft[c.id])!==JSON.stringify(saved[c.id])});
- msg("Сохраняю…");
- try{
-  var rem=await pull();
-  changed.forEach(function(c){if(draft[c.id])rem[c.id]=draft[c.id];else delete rem[c.id]});
-  await push(rem);
-  saved=rem;draft=copy(rem);put(KEY,saved);render();msg("Сохранено в GitHub ✓");
- }catch(e){msg("Не удалось сохранить в GitHub (код "+e.message+"). Нажми «Сохранить» ещё раз.")}
-};
+// Возвращает следующего человека по кругу после того, кто грузил последним.
+function getNextPerson(category, lastPersonName) {
+  const lastPersonIndex = category.people.indexOf(lastPersonName);
 
-// ↻ обновить данные вручную
-$("ref").onclick=function(){sync(false)};
+  if (lastPersonIndex === -1 || category.people.length === 0) {
+    return "—";
+  }
 
-// ⚙ окно настроек: репозиторий, файл, токен
-$("cfg").onclick=function(){
- var h='<div class="hd"><h2>Синхронизация с GitHub</h2><button class="x" id="x2" aria-label="Закрыть">✕</button></div><p class="hint">Данные хранятся в файле в вашем репозитории. Токен остаётся только на этом телефоне.</p>'+
-  '<label class="lbl">Репозиторий (владелец/название)</label><input class="dt" id="c1" value="'+(cfg.repo||"")+'" placeholder="ivan/pogruzka-data" autocapitalize="off">'+
-  '<label class="lbl">Файл</label><input class="dt" id="c2" value="'+(cfg.path||"data.json")+'" autocapitalize="off">'+
-  '<label class="lbl">Токен (Contents: Read and write)</label><input class="dt" id="c3" type="password" value="'+(cfg.token||"")+'" autocapitalize="off">'+
-  '<button class="opt done" id="c4">Сохранить настройки</button><button class="opt" id="c5">Отключить GitHub</button>';
- $("sheet").innerHTML=h;
- // «Сохранить настройки»: запоминаем введённое и сразу обновляем данные
- $("c4").onclick=function(){cfg={repo:$("c1").value.trim(),path:$("c2").value.trim()||"data.json",token:$("c3").value.trim()};put(GK,cfg);closeSheet();render();sync(false)};
- // «Отключить GitHub»: стираем настройки на этом устройстве
- $("c5").onclick=function(){cfg={};put(GK,cfg);closeSheet();render();msg("GitHub отключён")};
- $("x2").onclick=closeSheet;
- $("ov").classList.add("on");
-};
+  const nextPersonIndex = (lastPersonIndex + 1) % category.people.length;
+  return category.people[nextPersonIndex];
+}
+
+// Показывает дату как «сегодня», «вчера» или короткую календарную дату.
+function formatRelativeDate(isoDate) {
+  if (!isoDate) {
+    return "";
+  }
+
+  const [year, month, day] = isoDate.split("-").map(Number);
+  const today = new Date();
+  const todayAtMidnight = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate(),
+  );
+  const selectedDate = new Date(year, month - 1, day);
+  const daysAgo = Math.round(
+    (todayAtMidnight - selectedDate) / 86_400_000,
+  );
+
+  if (daysAgo === 0) {
+    return "сегодня";
+  }
+
+  if (daysAgo === 1) {
+    return "вчера";
+  }
+
+  if (daysAgo >= 2 && daysAgo <= 4) {
+    return `${daysAgo} дня назад`;
+  }
+
+  if (daysAgo >= 5 && daysAgo <= 7) {
+    return `${daysAgo} дней назад`;
+  }
+
+  const dateOptions = { day: "numeric", month: "short" };
+
+  if (selectedDate.getFullYear() !== todayAtMidnight.getFullYear()) {
+    dateOptions.year = "numeric";
+  }
+
+  return selectedDate.toLocaleDateString("ru-RU", dateOptions);
+}
 
 
 /* ==========================================================
-   ЧАСТЬ 9. ЗАПУСК И АВТООБНОВЛЕНИЕ
+   4. ГЛАВНЫЙ ЭКРАН: СПИСОК КАТЕГОРИЙ
    ========================================================== */
 
-// Обновлять данные, когда возвращаешься в приложение, и раз в 30 секунд
-// (только если нет несохранённых правок)
-document.addEventListener("visibilitychange",function(){if(!document.hidden&&!dirty())sync(true)});
-setInterval(function(){if(!document.hidden&&!dirty())sync(true)},30000);
+// Собирает HTML одной строки табло.
+function renderCategoryRow(category) {
+  const selection = draftSelections[category.id];
+  const categoryIcon = CATEGORY_ICONS[category.id] || "";
+  const categoryName = escapeHtml(category.name);
 
-// Первый запуск: рисуем экран и тихо подтягиваем данные с GitHub
-render();sync(true);
+  if (!selection) {
+    return `
+      <button class="row" data-id="${escapeHtml(category.id)}">
+        <span class="cat">${categoryIcon}${categoryName}</span>
+        <span class="nx empty">не выбрано</span>
+        <span class="lst empty">—</span>
+      </button>
+    `;
+  }
+
+  const lastPerson = escapeHtml(selection.name);
+  const nextPerson = escapeHtml(getNextPerson(category, selection.name));
+  const relativeDate = escapeHtml(formatRelativeDate(selection.iso));
+
+  return `
+    <button class="row" data-id="${escapeHtml(category.id)}">
+      <span class="cat">${categoryIcon}${categoryName}</span>
+      <span class="nx"><span>${nextPerson}</span></span>
+      <span class="lst">
+        <span class="n">${lastPerson}</span>
+        <span class="w">${relativeDate}</span>
+      </span>
+    </button>
+  `;
+}
+
+// Перерисовывает табло и обновляет доступность кнопки «Сохранить».
+function renderBoard() {
+  const categoryRows = CATEGORIES.map(renderCategoryRow).join("");
+  const boardHtml = `
+    <div class="board">
+      <div class="bh">
+        <span>Категория</span>
+        <span>Следующий</span>
+        <span>Грузил последним</span>
+      </div>
+      ${categoryRows}
+    </div>
+  `;
+
+  getElement("list").innerHTML = boardHtml;
+  getElement("save").disabled = !hasUnsavedChanges();
+
+  document.querySelectorAll(".row").forEach((rowButton) => {
+    rowButton.addEventListener("click", () => {
+      openSelectionSheet(rowButton.dataset.id);
+    });
+  });
+}
+
+
+/* ==========================================================
+   5. ВСПЛЫВАЮЩИЕ ОКНА
+   ========================================================== */
+
+// Закрывает окно выбора, настроек или правил.
+function closeSheet() {
+  getElement("ov").classList.remove("on");
+}
+
+// Закрывает окно при нажатии на затемнённую область вокруг него.
+getElement("ov").addEventListener("click", (event) => {
+  if (event.target === getElement("ov")) {
+    closeSheet();
+  }
+});
+
+// Собирает общий заголовок всплывающего окна.
+function renderSheetHeader(title, headingId) {
+  return `
+    <div class="hd">
+      <h2 id="${headingId}">${escapeHtml(title)}</h2>
+      <button class="x" id="close-sheet" aria-label="Закрыть">✕</button>
+    </div>
+  `;
+}
+
+// Показывает выбранный сотрудником список правил.
+function openRulesSheet() {
+  const sheet = getElement("sheet");
+
+  sheet.innerHTML = `
+    ${renderSheetHeader("Правила", "rules-title")}
+    <p class="rules-intro">Правило очередности погрузки:</p>
+    <ol class="rules-list">
+      <li>${escapeHtml(SHIFT_HANDOVER_RULE)}</li>
+    </ol>
+    <button class="opt done" id="rules-done">Понятно</button>
+  `;
+  sheet.setAttribute("role", "dialog");
+  sheet.setAttribute("aria-modal", "true");
+  sheet.setAttribute("aria-labelledby", "rules-title");
+
+  getElement("close-sheet").addEventListener("click", closeSheet);
+  getElement("rules-done").addEventListener("click", closeSheet);
+  getElement("ov").classList.add("on");
+}
+
+// Показывает окно выбора последнего загрузившего и даты.
+function openSelectionSheet(categoryId) {
+  const category = findCategory(categoryId);
+
+  if (!category) {
+    return;
+  }
+
+  const currentSelection = draftSelections[categoryId] || {};
+  let selectedDate = currentSelection.iso || getTodayIsoDate();
+  const peopleButtons = category.people
+    .map((person) => {
+      const isSelected = currentSelection.name === person;
+
+      return `
+        <button
+          class="opt${isSelected ? " sel" : ""}"
+          data-person="${escapeHtml(person)}"
+        >${escapeHtml(person)}</button>
+      `;
+    })
+    .join("");
+
+  const sheet = getElement("sheet");
+  sheet.innerHTML = `
+    ${renderSheetHeader(category.name, "selection-title")}
+    <label class="lbl" for="dt">Дата</label>
+    <input type="date" class="dt" id="dt" value="${escapeHtml(selectedDate)}">
+    <span class="lbl">Очерёдность</span>
+    ${peopleButtons}
+    <button class="opt done" id="selection-done">Готово</button>
+  `;
+  sheet.setAttribute("role", "dialog");
+  sheet.setAttribute("aria-modal", "true");
+  sheet.setAttribute("aria-labelledby", "selection-title");
+
+  // При изменении даты обновляет дату выбранной записи.
+  getElement("dt").addEventListener("change", (event) => {
+    if (event.target.value) {
+      selectedDate = event.target.value;
+    }
+
+    if (draftSelections[categoryId]) {
+      draftSelections[categoryId].iso = selectedDate;
+    }
+
+    renderBoard();
+  });
+
+  // Выбор имени делает этого человека последним загрузившим.
+  sheet.querySelectorAll("[data-person]").forEach((personButton) => {
+    personButton.addEventListener("click", () => {
+      draftSelections[categoryId] = {
+        name: personButton.dataset.person,
+        iso: selectedDate,
+      };
+
+      sheet.querySelectorAll("[data-person]").forEach((button) => {
+        button.classList.toggle("sel", button === personButton);
+      });
+
+      showMessage("");
+      renderBoard();
+    });
+  });
+
+  getElement("close-sheet").addEventListener("click", closeSheet);
+  getElement("selection-done").addEventListener("click", closeSheet);
+  getElement("ov").classList.add("on");
+}
+
+
+/* ==========================================================
+   6. СИНХРОНИЗАЦИЯ С GITHUB
+   ========================================================== */
+
+// GitHub настроен, если указаны репозиторий и токен.
+function isGitHubConfigured() {
+  return Boolean(githubConfig.repo && githubConfig.token);
+}
+
+// Возвращает адрес файла с данными в репозитории.
+function getGitHubFileUrl() {
+  const repository = githubConfig.repo;
+  const filePath = githubConfig.path || "data.json";
+
+  return `https://api.github.com/repos/${repository}/contents/${filePath}`;
+}
+
+// Создаёт заголовки авторизованного запроса к GitHub.
+function getGitHubHeaders() {
+  return {
+    Authorization: `Bearer ${githubConfig.token}`,
+    Accept: "application/vnd.github+json",
+  };
+}
+
+// Кодирует и декодирует содержимое файла GitHub в base64.
+function encodeBase64(text) {
+  return btoa(unescape(encodeURIComponent(text)));
+}
+
+function decodeBase64(text) {
+  return decodeURIComponent(escape(atob(text)));
+}
+
+// Загружает сохранённые данные из GitHub.
+async function pullFromGitHub() {
+  const response = await fetch(`${getGitHubFileUrl()}?t=${Date.now()}`, {
+    headers: getGitHubHeaders(),
+    cache: "no-store",
+  });
+
+  if (response.status === 404) {
+    githubFileSha = null;
+    return {};
+  }
+
+  if (!response.ok) {
+    throw new Error(response.status);
+  }
+
+  const file = await response.json();
+  githubFileSha = file.sha;
+
+  try {
+    return cleanSelections(JSON.parse(decodeBase64(file.content)));
+  } catch (error) {
+    return {};
+  }
+}
+
+// Сохраняет переданные данные в файл GitHub.
+async function pushToGitHub(selections) {
+  const requestBody = {
+    message: "Погрузка машин: обновление",
+    content: encodeBase64(JSON.stringify(selections, null, 1)),
+  };
+
+  if (githubFileSha) {
+    requestBody.sha = githubFileSha;
+  }
+
+  const headers = getGitHubHeaders();
+  headers["Content-Type"] = "application/json";
+
+  const response = await fetch(getGitHubFileUrl(), {
+    method: "PUT",
+    headers,
+    body: JSON.stringify(requestBody),
+  });
+
+  if (!response.ok) {
+    throw new Error(response.status);
+  }
+
+  const result = await response.json();
+  githubFileSha = result.content.sha;
+}
+
+// Обновляет данные с GitHub, не затирая несохранённые изменения на экране.
+async function syncWithGitHub(showResult) {
+  if (!isGitHubConfigured()) {
+    if (showResult) {
+      showMessage("GitHub не настроен: нажми ⚙");
+    }
+    return;
+  }
+
+  try {
+    const remoteSelections = await pullFromGitHub();
+    const remoteDataChanged =
+      JSON.stringify(remoteSelections) !== JSON.stringify(savedSelections);
+
+    if (remoteDataChanged) {
+      const hadUnsavedChanges = hasUnsavedChanges();
+      savedSelections = remoteSelections;
+      writeStorage(STORAGE_KEYS.selections, savedSelections);
+
+      if (!hadUnsavedChanges) {
+        draftSelections = copyData(savedSelections);
+        renderBoard();
+      }
+    }
+
+    if (showResult) {
+      showMessage("Обновлено ✓");
+    }
+  } catch (error) {
+    if (showResult) {
+      showMessage(`Нет связи с GitHub (код ${error.message})`);
+    }
+  }
+}
+
+
+/* ==========================================================
+   7. КНОПКИ: СОХРАНИТЬ, ОБНОВИТЬ, ПРАВИЛА И НАСТРОЙКИ
+   ========================================================== */
+
+// Сохраняет изменения локально или синхронизирует их с GitHub.
+getElement("save").addEventListener("click", async () => {
+  if (!isGitHubConfigured()) {
+    savedSelections = copyData(draftSelections);
+    writeStorage(STORAGE_KEYS.selections, savedSelections);
+    renderBoard();
+    showMessage("Сохранено на этом телефоне (GitHub не настроен)");
+    return;
+  }
+
+  const changedCategories = CATEGORIES.filter((category) => {
+    return (
+      JSON.stringify(draftSelections[category.id]) !==
+      JSON.stringify(savedSelections[category.id])
+    );
+  });
+
+  showMessage("Сохраняю…");
+
+  try {
+    const remoteSelections = await pullFromGitHub();
+
+    changedCategories.forEach((category) => {
+      const updatedSelection = draftSelections[category.id];
+
+      if (updatedSelection) {
+        remoteSelections[category.id] = updatedSelection;
+      } else {
+        delete remoteSelections[category.id];
+      }
+    });
+
+    await pushToGitHub(remoteSelections);
+    savedSelections = remoteSelections;
+    draftSelections = copyData(remoteSelections);
+    writeStorage(STORAGE_KEYS.selections, savedSelections);
+    renderBoard();
+    showMessage("Сохранено в GitHub ✓");
+  } catch (error) {
+    showMessage(
+      `Не удалось сохранить в GitHub (код ${error.message}). Нажми «Сохранить» ещё раз.`,
+    );
+  }
+});
+
+// Обновляет данные вручную.
+getElement("ref").addEventListener("click", () => {
+  syncWithGitHub(true);
+});
+
+// Открывает окно с правилом очередности.
+getElement("rules").addEventListener("click", openRulesSheet);
+
+// Показывает настройки синхронизации с GitHub.
+getElement("cfg").addEventListener("click", openGitHubSettings);
+
+function openGitHubSettings() {
+  const sheet = getElement("sheet");
+  sheet.innerHTML = `
+    ${renderSheetHeader("Синхронизация с GitHub", "github-title")}
+    <p class="hint">
+      Данные хранятся в файле в вашем репозитории. Токен остаётся только на этом телефоне.
+    </p>
+    <label class="lbl" for="github-repo">Репозиторий (владелец/название)</label>
+    <input
+      class="dt"
+      id="github-repo"
+      value="${escapeHtml(githubConfig.repo || "")}"
+      placeholder="ivan/pogruzka-data"
+      autocapitalize="off"
+    >
+    <label class="lbl" for="github-path">Файл</label>
+    <input
+      class="dt"
+      id="github-path"
+      value="${escapeHtml(githubConfig.path || "data.json")}"
+      autocapitalize="off"
+    >
+    <label class="lbl" for="github-token">Токен (Contents: Read and write)</label>
+    <input
+      class="dt"
+      id="github-token"
+      type="password"
+      value="${escapeHtml(githubConfig.token || "")}"
+      autocapitalize="off"
+    >
+    <button class="opt done" id="save-github-settings">Сохранить настройки</button>
+    <button class="opt" id="disconnect-github">Отключить GitHub</button>
+  `;
+  sheet.setAttribute("role", "dialog");
+  sheet.setAttribute("aria-modal", "true");
+  sheet.setAttribute("aria-labelledby", "github-title");
+
+  getElement("save-github-settings").addEventListener("click", () => {
+    githubConfig = {
+      repo: getElement("github-repo").value.trim(),
+      path: getElement("github-path").value.trim() || "data.json",
+      token: getElement("github-token").value.trim(),
+    };
+
+    writeStorage(STORAGE_KEYS.github, githubConfig);
+    closeSheet();
+    renderBoard();
+    syncWithGitHub(true);
+  });
+
+  getElement("disconnect-github").addEventListener("click", () => {
+    githubConfig = {};
+    writeStorage(STORAGE_KEYS.github, githubConfig);
+    closeSheet();
+    renderBoard();
+    showMessage("GitHub отключён");
+  });
+
+  getElement("close-sheet").addEventListener("click", closeSheet);
+  getElement("ov").classList.add("on");
+}
+
+
+/* ==========================================================
+   8. ЗАПУСК И АВТООБНОВЛЕНИЕ
+   ========================================================== */
+
+// Обновляет данные при возвращении в приложение, если нет несохранённых правок.
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && !hasUnsavedChanges()) {
+    syncWithGitHub(false);
+  }
+});
+
+// Периодически проверяет GitHub, когда приложение открыто.
+setInterval(() => {
+  if (!document.hidden && !hasUnsavedChanges()) {
+    syncWithGitHub(false);
+  }
+}, 30_000);
+
+// Первый запуск: показывает табло и загружает данные из GitHub.
+renderBoard();
+syncWithGitHub(false);
