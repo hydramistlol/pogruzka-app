@@ -27,10 +27,19 @@ const CATEGORY_ICONS = {
 const SHIFT_HANDOVER_RULE =
   "Если в конце смены грузящий передаёт машину другому, очередь переходит к следующему человеку.";
 
-let savedSelections = readStorage(STORAGE_KEYS.selections);
+const IS_READ_ONLY_VIEW = new URLSearchParams(window.location.search).get("view") === "1";
+
+let savedSelections = IS_READ_ONLY_VIEW ? {} : readStorage(STORAGE_KEYS.selections);
 let draftSelections = copyData(savedSelections);
-let githubConfig = readStorage(STORAGE_KEYS.github);
+let githubConfig = IS_READ_ONLY_VIEW ? {} : readStorage(STORAGE_KEYS.github);
 let githubFileSha = null;
+
+// Ссылка с ?view=1 предназначена только для просмотра общих данных.
+if (IS_READ_ONLY_VIEW) {
+  document.body.classList.add("read-only-view");
+  getElement("save").parentElement.hidden = true;
+  getElement("cfg").hidden = true;
+}
 
 
 /* ==========================================================
@@ -238,6 +247,13 @@ function renderBoard() {
   getElement("save").disabled = !hasUnsavedChanges();
 
   document.querySelectorAll(".row").forEach((rowButton) => {
+    if (IS_READ_ONLY_VIEW) {
+      rowButton.disabled = true;
+      rowButton.style.cursor = "default";
+      rowButton.style.opacity = "1";
+      return;
+    }
+
     rowButton.addEventListener("click", () => {
       openSelectionSheet(rowButton.dataset.id);
     });
@@ -294,6 +310,10 @@ function openRulesSheet() {
 
 // Показывает окно выбора последнего загрузившего и даты.
 function openSelectionSheet(categoryId) {
+  if (IS_READ_ONLY_VIEW) {
+    return;
+  }
+
   const category = findCategory(categoryId);
 
   if (!category) {
@@ -452,8 +472,42 @@ async function pushToGitHub(selections) {
   githubFileSha = result.content.sha;
 }
 
+// Загружает общие данные из data.json для ссылки только на чтение.
+async function syncFromPublicData(showResult) {
+  try {
+    const response = await fetch("./data.json?t=" + Date.now(), { cache: "no-store" });
+
+    if (!response.ok) {
+      throw new Error(response.status);
+    }
+
+    const publicSelections = cleanSelections(await response.json());
+    const publicDataChanged =
+      JSON.stringify(publicSelections) !== JSON.stringify(savedSelections);
+
+    if (publicDataChanged) {
+      savedSelections = publicSelections;
+      draftSelections = copyData(publicSelections);
+      renderBoard();
+    }
+
+    if (showResult) {
+      showMessage("Обновлено ✓");
+    }
+  } catch (error) {
+    if (showResult) {
+      showMessage("Не удалось загрузить общие данные (код " + error.message + ")");
+    }
+  }
+}
+
 // Обновляет данные с GitHub, не затирая несохранённые изменения на экране.
 async function syncWithGitHub(showResult) {
+  if (IS_READ_ONLY_VIEW) {
+    await syncFromPublicData(showResult);
+    return;
+  }
+
   if (!isGitHubConfigured()) {
     if (showResult) {
       showMessage("GitHub не настроен: нажми ⚙");
@@ -494,6 +548,10 @@ async function syncWithGitHub(showResult) {
 
 // Сохраняет изменения локально или синхронизирует их с GitHub.
 getElement("save").addEventListener("click", async () => {
+  if (IS_READ_ONLY_VIEW) {
+    return;
+  }
+
   if (!isGitHubConfigured()) {
     savedSelections = copyData(draftSelections);
     writeStorage(STORAGE_KEYS.selections, savedSelections);
@@ -549,6 +607,10 @@ getElement("rules").addEventListener("click", openRulesSheet);
 getElement("cfg").addEventListener("click", openGitHubSettings);
 
 function openGitHubSettings() {
+  if (IS_READ_ONLY_VIEW) {
+    return;
+  }
+
   const sheet = getElement("sheet");
   sheet.innerHTML = `
     ${renderSheetHeader("Синхронизация с GitHub", "github-title")}
