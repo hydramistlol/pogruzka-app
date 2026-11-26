@@ -27,18 +27,21 @@ const CATEGORY_ICONS = {
 const SHIFT_HANDOVER_RULE =
   "Если в конце смены грузящий передаёт машину другому, очередь переходит к следующему человеку.";
 
-const IS_READ_ONLY_VIEW = new URLSearchParams(window.location.search).get("view") === "1";
+const FORCE_READ_ONLY_VIEW =
+  new URLSearchParams(window.location.search).get("view") === "1";
 
+// Без сохранённых GitHub-настроек приложение всегда открывается для просмотра.
+// Параметр ?view=1 принудительно включает этот режим и не читает токен.
+let githubConfig = FORCE_READ_ONLY_VIEW ? {} : readStorage(STORAGE_KEYS.github);
+const IS_READ_ONLY_VIEW =
+  FORCE_READ_ONLY_VIEW || !Boolean(githubConfig.repo && githubConfig.token);
 let savedSelections = IS_READ_ONLY_VIEW ? {} : readStorage(STORAGE_KEYS.selections);
 let draftSelections = copyData(savedSelections);
-let githubConfig = IS_READ_ONLY_VIEW ? {} : readStorage(STORAGE_KEYS.github);
 let githubFileSha = null;
 
-// Ссылка с ?view=1 предназначена только для просмотра общих данных.
 if (IS_READ_ONLY_VIEW) {
   document.body.classList.add("read-only-view");
   getElement("save").parentElement.hidden = true;
-  getElement("cfg").hidden = true;
 }
 
 
@@ -607,10 +610,6 @@ getElement("rules").addEventListener("click", openRulesSheet);
 getElement("cfg").addEventListener("click", openGitHubSettings);
 
 function openGitHubSettings() {
-  if (IS_READ_ONLY_VIEW) {
-    return;
-  }
-
   const sheet = getElement("sheet");
   sheet.innerHTML = `
     ${renderSheetHeader("Синхронизация с GitHub", "github-title")}
@@ -655,17 +654,13 @@ function openGitHubSettings() {
     };
 
     writeStorage(STORAGE_KEYS.github, githubConfig);
-    closeSheet();
-    renderBoard();
-    syncWithGitHub(true);
+    window.location.reload();
   });
 
   getElement("disconnect-github").addEventListener("click", () => {
     githubConfig = {};
     writeStorage(STORAGE_KEYS.github, githubConfig);
-    closeSheet();
-    renderBoard();
-    showMessage("GitHub отключён");
+    window.location.reload();
   });
 
   getElement("close-sheet").addEventListener("click", closeSheet);
