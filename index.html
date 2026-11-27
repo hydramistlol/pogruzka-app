@@ -15,15 +15,18 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;600;700&amp;display=swap">
 
     <!-- Иконки для вкладки браузера и главного экрана на телефоне. -->
-    <link rel="icon" href="favicon.ico" sizes="any">
-    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+    <link rel="icon" href="favicon/favicon.ico" sizes="any">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="favicon/favicon-16x16.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="favicon/android-chrome-192x192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="favicon/android-chrome-512x512.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="favicon/apple-touch-icon.png">
     <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 
     <link
       id="app-stylesheet"
       rel="stylesheet"
-      href="style.css?v=6"
+      href="style/style.css?v=7"
     >
   </head>
 
@@ -72,7 +75,7 @@
           stylesheetUrl.searchParams.set("__code_reload", reloadToken);
           stylesheet.href = stylesheetUrl.toString();
 
-          const scriptUrl = new URL("app.js?v=7", window.location.href);
+          const scriptUrl = new URL("js/app.js?v=8", window.location.href);
           scriptUrl.searchParams.set("__code_reload", reloadToken);
           pageUrl.searchParams.delete("__code_reload");
           window.history.replaceState({}, "", pageUrl.pathname + pageUrl.search + pageUrl.hash);
@@ -84,7 +87,7 @@
         }
 
         const appScript = document.createElement("script");
-        appScript.src = "app.js?v=7";
+        appScript.src = "js/app.js?v=8";
         document.body.appendChild(appScript);
       })();
     </script>

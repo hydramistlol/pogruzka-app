@@ -517,7 +517,7 @@ async function pushToGitHub(selections) {
 }
 
 // Список опубликованных файлов, по которым приложение обнаруживает изменения интерфейса и кода.
-const DEPLOYED_CODE_FILES = ["index.html", "app.js", "style.css"];
+const DEPLOYED_CODE_FILES = ["index.html", "js/app.js", "style/style.css"];
 
 // Возвращает URL файла относительно корня GitHub Pages проекта.
 function getProjectAssetUrl(fileName) {
@@ -566,8 +566,8 @@ function getLoadedCodeFileUrls() {
 
   return {
     "index.html": window.location.href,
-    "app.js": currentScript ? currentScript.src : getProjectAssetUrl("app.js").toString(),
-    "style.css": stylesheet ? stylesheet.href : getProjectAssetUrl("style.css").toString(),
+    "js/app.js": currentScript ? currentScript.src : getProjectAssetUrl("js/app.js").toString(),
+    "style/style.css": stylesheet ? stylesheet.href : getProjectAssetUrl("style/style.css").toString(),
   };
 }
 
