@@ -41,7 +41,7 @@
         <button class="ic" id="ref" type="button" title="Обновить" aria-label="Обновить данные">
           ↻
         </button>
-        <button class="ic" id="cfg" type="button" title="GitHub" aria-label="Настройки GitHub">
+        <button class="ic" id="cfg" hidden type="button" title="GitHub" aria-label="Настройки GitHub">
           ⚙
         </button>
       </header>
@@ -75,7 +75,7 @@
           stylesheetUrl.searchParams.set("__code_reload", reloadToken);
           stylesheet.href = stylesheetUrl.toString();
 
-          const scriptUrl = new URL("js/app.js?v=8", window.location.href);
+          const scriptUrl = new URL("js/app.js?v=9", window.location.href);
           scriptUrl.searchParams.set("__code_reload", reloadToken);
           pageUrl.searchParams.delete("__code_reload");
           window.history.replaceState({}, "", pageUrl.pathname + pageUrl.search + pageUrl.hash);
@@ -87,7 +87,7 @@
         }
 
         const appScript = document.createElement("script");
-        appScript.src = "js/app.js?v=8";
+        appScript.src = "js/app.js?v=9";
         document.body.appendChild(appScript);
       })();
     </script>
