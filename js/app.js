@@ -43,10 +43,10 @@ const PENDING_REFRESH_NOTICE_KEY = "pogruzka_refresh_notice";
 const pendingRefreshNotice = readPendingRefreshNotice();
 
 getElement("cfg").hidden = IS_READ_ONLY_VIEW && !SHOW_SETTINGS_IN_VIEW;
+getElement("save").parentElement.hidden = IS_READ_ONLY_VIEW;
 
 if (IS_READ_ONLY_VIEW) {
   document.body.classList.add("read-only-view");
-  getElement("save").parentElement.hidden = true;
 }
 
 

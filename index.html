@@ -54,7 +54,7 @@
     </main>
 
     <!-- Кнопка сохранения закреплена внизу экрана. -->
-    <div class="bar">
+    <div class="bar" hidden>
       <button id="save" type="button" disabled>Сохранить</button>
     </div>
 
@@ -75,7 +75,7 @@
           stylesheetUrl.searchParams.set("__code_reload", reloadToken);
           stylesheet.href = stylesheetUrl.toString();
 
-          const scriptUrl = new URL("js/app.js?v=9", window.location.href);
+          const scriptUrl = new URL("js/app.js?v=10", window.location.href);
           scriptUrl.searchParams.set("__code_reload", reloadToken);
           pageUrl.searchParams.delete("__code_reload");
           window.history.replaceState({}, "", pageUrl.pathname + pageUrl.search + pageUrl.hash);
@@ -87,7 +87,7 @@
         }
 
         const appScript = document.createElement("script");
-        appScript.src = "js/app.js?v=9";
+        appScript.src = "js/app.js?v=10";
         document.body.appendChild(appScript);
       })();
     </script>
