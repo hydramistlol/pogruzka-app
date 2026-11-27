@@ -39,6 +39,8 @@ const IS_READ_ONLY_VIEW =
 let savedSelections = IS_READ_ONLY_VIEW ? {} : readStorage(STORAGE_KEYS.selections);
 let draftSelections = copyData(savedSelections);
 let githubFileSha = null;
+const PENDING_REFRESH_NOTICE_KEY = "pogruzka_refresh_notice";
+const pendingRefreshNotice = readPendingRefreshNotice();
 
 if (IS_READ_ONLY_VIEW) {
   document.body.classList.add("read-only-view");
@@ -89,11 +91,17 @@ function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
-// Таймер для автоматического скрытия подтверждения обновления.
+// Таймер для автоматического скрытия статуса обновления.
 let messageTimeoutId = null;
+const REFRESH_MESSAGE_CLASSES = [
+  "msg-success",
+  "msg-queue-changed",
+  "msg-code-reload",
+  "msg-no-updates",
+];
 
-// Показывает сообщение; подтверждение обновления скрывается через 3 секунды.
-function showMessage(text) {
+// Показывает обычное сообщение или временный статус проверки обновлений.
+function showMessage(text, statusClass = "") {
   const message = getElement("msg");
   message.textContent = text;
 
@@ -102,16 +110,22 @@ function showMessage(text) {
     messageTimeoutId = null;
   }
 
-  const isRefreshSuccess = text === "Обновлено ✓";
-  message.classList.toggle("msg-success", isRefreshSuccess);
+  REFRESH_MESSAGE_CLASSES.forEach((className) => {
+    message.classList.remove(className);
+  });
 
-  if (isRefreshSuccess) {
-    messageTimeoutId = window.setTimeout(() => {
-      message.textContent = "";
-      message.classList.remove("msg-success");
-      messageTimeoutId = null;
-    }, 3000);
+  if (!statusClass) {
+    return;
   }
+
+  message.classList.add(statusClass);
+  messageTimeoutId = window.setTimeout(() => {
+    if (message.textContent === text) {
+      message.textContent = "";
+      message.classList.remove(statusClass);
+    }
+    messageTimeoutId = null;
+  }, 3000);
 }
 
 // Добавляет ведущий ноль к числу даты.
@@ -497,73 +511,238 @@ async function pushToGitHub(selections) {
   githubFileSha = result.content.sha;
 }
 
-// Загружает общие данные из data.json для ссылки только на чтение.
-async function syncFromPublicData(showResult) {
+// Список опубликованных файлов, по которым приложение обнаруживает изменения интерфейса и кода.
+const DEPLOYED_CODE_FILES = ["index.html", "app.js", "style.css"];
+
+// Возвращает URL файла относительно корня GitHub Pages проекта.
+function getProjectAssetUrl(fileName) {
+  const pageUrl = new URL(window.location.href);
+  pageUrl.search = "";
+  pageUrl.hash = "";
+
+  if (!pageUrl.pathname.endsWith("/")) {
+    pageUrl.pathname = pageUrl.pathname.slice(0, pageUrl.pathname.lastIndexOf("/") + 1);
+  }
+
+  return new URL(fileName, pageUrl);
+}
+
+// Читает одну опубликованную версию файла без использования кеша.
+async function fetchPublishedFile(fileUrl, cacheMode = "no-store") {
+  const response = await fetch(fileUrl, { cache: cacheMode });
+
+  if (response.status === 404) {
+    return "__missing_file__";
+  }
+
+  if (!response.ok) {
+    throw new Error(response.status);
+  }
+
+  return response.text();
+}
+
+// Снимает снимок HTML, JavaScript и CSS, используемых сайтом.
+async function captureCodeSnapshot(fileUrls, cacheMode = "no-store") {
+  const files = await Promise.all(
+    Object.entries(fileUrls).map(async ([fileName, fileUrl]) => {
+      const content = await fetchPublishedFile(fileUrl, cacheMode);
+      return [fileName, content];
+    })
+  );
+
+  return Object.fromEntries(files);
+}
+
+// Сохраняет ссылки и содержимое ресурсов, которые загружены в текущую вкладку.
+function getLoadedCodeFileUrls() {
+  const stylesheet = document.getElementById("app-stylesheet");
+  const currentScript = document.currentScript;
+
+  return {
+    "index.html": window.location.href,
+    "app.js": currentScript ? currentScript.src : getProjectAssetUrl("app.js").toString(),
+    "style.css": stylesheet ? stylesheet.href : getProjectAssetUrl("style.css").toString(),
+  };
+}
+
+// Запоминает опубликованный код на момент открытия страницы.
+const initialCodeSnapshotPromise = captureCodeSnapshot(getLoadedCodeFileUrls(), "force-cache").catch(() => null);
+
+// Получает самые свежие версии файлов сайта для ручной проверки.
+function getLatestCodeFileUrls() {
+  return Object.fromEntries(
+    DEPLOYED_CODE_FILES.map((fileName) => {
+      const fileUrl = getProjectAssetUrl(fileName);
+      fileUrl.searchParams.set("_refresh_check", String(Date.now()));
+      return [fileName, fileUrl.toString()];
+    })
+  );
+}
+
+// Сравнивает опубликованные файлы с теми, что были загружены при открытии вкладки.
+async function hasDeployedCodeChanged() {
+  const initialSnapshot = await initialCodeSnapshotPromise;
+
+  if (!initialSnapshot) {
+    throw new Error("Не удалось проверить версию приложения");
+  }
+
+  const latestSnapshot = await captureCodeSnapshot(getLatestCodeFileUrls());
+  return DEPLOYED_CODE_FILES.some((fileName) => initialSnapshot[fileName] !== latestSnapshot[fileName]);
+}
+
+// Читает и удаляет уведомление, которое нужно показать после перезагрузки кода.
+function readPendingRefreshNotice() {
   try {
-    const response = await fetch("./data.json?t=" + Date.now(), { cache: "no-store" });
-
-    if (!response.ok) {
-      throw new Error(response.status);
-    }
-
-    const publicSelections = cleanSelections(await response.json());
-    const publicDataChanged =
-      JSON.stringify(publicSelections) !== JSON.stringify(savedSelections);
-
-    if (publicDataChanged) {
-      savedSelections = publicSelections;
-      draftSelections = copyData(publicSelections);
-      renderBoard();
-    }
-
-    if (showResult) {
-      showMessage("Обновлено ✓");
-    }
+    const notice = sessionStorage.getItem(PENDING_REFRESH_NOTICE_KEY);
+    sessionStorage.removeItem(PENDING_REFRESH_NOTICE_KEY);
+    return notice;
   } catch (error) {
-    showMessage("Не удалось загрузить общие данные (код " + error.message + ")");
+    return null;
   }
 }
 
-// Обновляет данные с GitHub, не затирая несохранённые изменения на экране.
-async function syncWithGitHub(showResult) {
-  if (IS_READ_ONLY_VIEW) {
-    await syncFromPublicData(showResult);
+// Загружает общие данные из опубликованного data.json для просмотра без настроек GitHub.
+async function pullPublicSelections() {
+  const response = await fetch("./data.json?t=" + Date.now(), { cache: "no-store" });
+
+  if (!response.ok) {
+    throw new Error(response.status);
+  }
+
+  return cleanSelections(await response.json());
+}
+
+// Применяет изменения GitHub, сохраняя локальные черновики в других категориях.
+function applyRemoteSelections(remoteSelections) {
+  const remoteDataChanged = JSON.stringify(remoteSelections) !== JSON.stringify(savedSelections);
+
+  if (!remoteDataChanged) {
+    return false;
+  }
+
+  const updatedDraft = copyData(draftSelections);
+
+  CATEGORIES.forEach((category) => {
+    const categoryId = category.id;
+    const previousSelection = savedSelections[categoryId] || null;
+    const remoteSelection = remoteSelections[categoryId] || null;
+    const remoteCategoryChanged = JSON.stringify(previousSelection) !== JSON.stringify(remoteSelection);
+
+    if (!remoteCategoryChanged) {
+      return;
+    }
+
+    if (remoteSelection) {
+      updatedDraft[categoryId] = { ...remoteSelection };
+    } else {
+      delete updatedDraft[categoryId];
+    }
+  });
+
+  savedSelections = copyData(remoteSelections);
+  draftSelections = updatedDraft;
+  writeStorage(STORAGE_KEYS.selections, savedSelections);
+  renderBoard();
+  return true;
+}
+
+// Запоминает, какие уведомления нужно показать после перезагрузки приложения.
+function savePendingRefreshNotice(notice) {
+  try {
+    sessionStorage.setItem(PENDING_REFRESH_NOTICE_KEY, notice);
+  } catch (error) {
+    // Если хранилище браузера недоступно, страница всё равно перезагрузится.
+  }
+}
+
+// Перезагружает страницу и заставляет браузер скачать свежие CSS и JavaScript.
+function reloadWithLatestCode() {
+  const pageUrl = new URL(window.location.href);
+  pageUrl.searchParams.set("__code_reload", String(Date.now()));
+  window.location.replace(pageUrl.toString());
+}
+
+// Показывает нужный статус и, если код изменился, перезагружает страницу.
+function showManualRefreshResult(queueChanged, codeChanged) {
+  if (codeChanged) {
+    savePendingRefreshNotice(queueChanged ? "queue-and-code" : "code");
+    showMessage("Code reload", "msg-code-reload");
+    window.setTimeout(reloadWithLatestCode, 1800);
     return;
   }
 
-  if (!isGitHubConfigured()) {
+  if (queueChanged) {
+    showMessage("Очередь погрузки изменилась", "msg-queue-changed");
+    return;
+  }
+
+  showMessage("Обновлений нет", "msg-no-updates");
+}
+
+// Показывает статусы очереди и перезагрузки после применения новой версии кода.
+function showPendingRefreshNotice(notice) {
+  if (notice === "queue-and-code") {
+    showMessage("Очередь погрузки изменилась", "msg-queue-changed");
+    window.setTimeout(() => {
+      showMessage("Code reload", "msg-code-reload");
+    }, 3200);
+    return;
+  }
+
+  if (notice === "code") {
+    showMessage("Code reload", "msg-code-reload");
+  }
+}
+
+// Синхронизирует очередь и при ручном вызове проверяет изменения интерфейса и кода.
+async function syncWithGitHub(showResult) {
+  if (!IS_READ_ONLY_VIEW && !isGitHubConfigured()) {
     if (showResult) {
       showMessage("GitHub не настроен: нажми ⚙");
     }
     return;
   }
 
+  if (showResult) {
+    showMessage("Проверяю обновления…");
+  }
+
   try {
-    const remoteSelections = await pullFromGitHub();
-    const remoteDataChanged =
-      JSON.stringify(remoteSelections) !== JSON.stringify(savedSelections);
+    const remoteSelections = IS_READ_ONLY_VIEW
+      ? await pullPublicSelections()
+      : await pullFromGitHub();
+    const queueChanged = applyRemoteSelections(remoteSelections);
 
-    if (remoteDataChanged) {
-      const hadUnsavedChanges = hasUnsavedChanges();
-      savedSelections = remoteSelections;
-      writeStorage(STORAGE_KEYS.selections, savedSelections);
+    if (!showResult) {
+      return;
+    }
 
-      if (!hadUnsavedChanges) {
-        draftSelections = copyData(savedSelections);
-        renderBoard();
+    let codeChanged = false;
+
+    try {
+      codeChanged = await hasDeployedCodeChanged();
+    } catch (error) {
+      if (queueChanged) {
+        showMessage("Очередь погрузки изменилась", "msg-queue-changed");
+      } else {
+        showMessage("Не удалось проверить изменения интерфейса");
       }
+      return;
     }
 
-    if (showResult) {
-      showMessage("Обновлено ✓");
-    }
+    showManualRefreshResult(queueChanged, codeChanged);
   } catch (error) {
-    if (showResult) {
-      showMessage(`Нет связи с GitHub (код ${error.message})`);
+    if (showResult || IS_READ_ONLY_VIEW) {
+      if (IS_READ_ONLY_VIEW) {
+        showMessage("Не удалось загрузить общие данные (код " + error.message + ")");
+      } else {
+        showMessage("Нет связи с GitHub (код " + error.message + ")");
+      }
     }
   }
 }
-
 
 /* ==========================================================
    7. КНОПКИ: СОХРАНИТЬ, ОБНОВИТЬ, ПРАВИЛА И НАСТРОЙКИ
@@ -618,7 +797,7 @@ getElement("save").addEventListener("click", async () => {
   }
 });
 
-// Обновляет данные вручную.
+// Вручную проверяет очередь и опубликованный интерфейс.
 getElement("ref").addEventListener("click", () => {
   syncWithGitHub(true);
 });
@@ -708,4 +887,6 @@ setInterval(() => {
 
 // Первый запуск: показывает табло и загружает данные из GitHub.
 renderBoard();
-syncWithGitHub(false);
+syncWithGitHub(false).finally(() => {
+  showPendingRefreshNotice(pendingRefreshNotice);
+});
