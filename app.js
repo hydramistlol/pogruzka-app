@@ -98,6 +98,7 @@ const REFRESH_MESSAGE_CLASSES = [
   "msg-queue-changed",
   "msg-code-reload",
   "msg-no-updates",
+  "msg-save-success",
 ];
 
 // Показывает обычное сообщение или временный статус проверки обновлений.
@@ -359,11 +360,15 @@ function openSelectionSheet(categoryId) {
     return;
   }
 
+  // Изменения хранятся отдельно от табло до нажатия «Готово».
   const currentSelection = draftSelections[categoryId] || {};
-  let selectedDate = currentSelection.iso || getTodayIsoDate();
+  const pendingSelection = {
+    name: currentSelection.name || "",
+    iso: currentSelection.iso || getTodayIsoDate(),
+  };
   const peopleButtons = category.people
     .map((person) => {
-      const isSelected = currentSelection.name === person;
+      const isSelected = pendingSelection.name === person;
 
       return `
         <button
@@ -378,7 +383,7 @@ function openSelectionSheet(categoryId) {
   sheet.innerHTML = `
     ${renderSheetHeader(category.name, "selection-title")}
     <label class="lbl" for="dt">Дата</label>
-    <input type="date" class="dt" id="dt" value="${escapeHtml(selectedDate)}">
+    <input type="date" class="dt" id="dt" value="${escapeHtml(pendingSelection.iso)}">
     <span class="lbl">Очерёдность</span>
     ${peopleButtons}
     <button class="opt done" id="selection-done">Готово</button>
@@ -387,38 +392,38 @@ function openSelectionSheet(categoryId) {
   sheet.setAttribute("aria-modal", "true");
   sheet.setAttribute("aria-labelledby", "selection-title");
 
-  // При изменении даты обновляет дату выбранной записи.
+  // Дата остаётся в черновике окна и применяется кнопкой «Готово».
   getElement("dt").addEventListener("change", (event) => {
     if (event.target.value) {
-      selectedDate = event.target.value;
+      pendingSelection.iso = event.target.value;
     }
-
-    if (draftSelections[categoryId]) {
-      draftSelections[categoryId].iso = selectedDate;
-    }
-
-    renderBoard();
   });
 
-  // Выбор имени делает этого человека последним загрузившим.
+  // Имя остаётся в черновике окна до нажатия «Готово».
   sheet.querySelectorAll("[data-person]").forEach((personButton) => {
     personButton.addEventListener("click", () => {
-      draftSelections[categoryId] = {
-        name: personButton.dataset.person,
-        iso: selectedDate,
-      };
+      pendingSelection.name = personButton.dataset.person;
+      pendingSelection.iso = getElement("dt").value || pendingSelection.iso;
 
       sheet.querySelectorAll("[data-person]").forEach((button) => {
         button.classList.toggle("sel", button === personButton);
       });
-
-      showMessage("");
-      renderBoard();
     });
   });
 
+  getElement("selection-done").addEventListener("click", () => {
+    if (pendingSelection.name) {
+      draftSelections[categoryId] = {
+        name: pendingSelection.name,
+        iso: pendingSelection.iso || getTodayIsoDate(),
+      };
+      renderBoard();
+    }
+
+    closeSheet();
+  });
+
   getElement("close-sheet").addEventListener("click", closeSheet);
-  getElement("selection-done").addEventListener("click", closeSheet);
   getElement("ov").classList.add("on");
 }
 
@@ -789,7 +794,7 @@ getElement("save").addEventListener("click", async () => {
     draftSelections = copyData(remoteSelections);
     writeStorage(STORAGE_KEYS.selections, savedSelections);
     renderBoard();
-    showMessage("Сохранено в GitHub ✓");
+    showMessage("Сохранено в GitHub ✓", "msg-save-success");
   } catch (error) {
     showMessage(
       `Не удалось сохранить в GitHub (код ${error.message}). Нажми «Сохранить» ещё раз.`,
