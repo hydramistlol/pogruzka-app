@@ -16,8 +16,9 @@
     <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 
     <link
+      id="app-stylesheet"
       rel="stylesheet"
-      href="style.css?v=3"
+      href="style.css?v=4"
     >
   </head>
 
@@ -54,6 +55,33 @@
       <section class="sheet" id="sheet"></section>
     </div>
 
-    <script src="app.js?v=4"></script>
+    <script>
+      // Добавляет одноразовый параметр, чтобы после Code reload скачать свежие файлы.
+      (() => {
+        const pageUrl = new URL(window.location.href);
+        const reloadToken = pageUrl.searchParams.get("__code_reload");
+        const stylesheet = document.getElementById("app-stylesheet");
+
+        if (reloadToken && stylesheet) {
+          const stylesheetUrl = new URL(stylesheet.href, window.location.href);
+          stylesheetUrl.searchParams.set("__code_reload", reloadToken);
+          stylesheet.href = stylesheetUrl.toString();
+
+          const scriptUrl = new URL("app.js?v=5", window.location.href);
+          scriptUrl.searchParams.set("__code_reload", reloadToken);
+          pageUrl.searchParams.delete("__code_reload");
+          window.history.replaceState({}, "", pageUrl.pathname + pageUrl.search + pageUrl.hash);
+
+          const appScript = document.createElement("script");
+          appScript.src = scriptUrl.toString();
+          document.body.appendChild(appScript);
+          return;
+        }
+
+        const appScript = document.createElement("script");
+        appScript.src = "app.js?v=5";
+        document.body.appendChild(appScript);
+      })();
+    </script>
   </body>
 </html>
