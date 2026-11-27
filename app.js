@@ -89,9 +89,29 @@ function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
-// Показывает короткое сообщение под списком категорий.
+// Таймер для автоматического скрытия подтверждения обновления.
+let messageTimeoutId = null;
+
+// Показывает сообщение; подтверждение обновления скрывается через 3 секунды.
 function showMessage(text) {
-  getElement("msg").textContent = text;
+  const message = getElement("msg");
+  message.textContent = text;
+
+  if (messageTimeoutId !== null) {
+    window.clearTimeout(messageTimeoutId);
+    messageTimeoutId = null;
+  }
+
+  const isRefreshSuccess = text === "Обновлено ✓";
+  message.classList.toggle("msg-success", isRefreshSuccess);
+
+  if (isRefreshSuccess) {
+    messageTimeoutId = window.setTimeout(() => {
+      message.textContent = "";
+      message.classList.remove("msg-success");
+      messageTimeoutId = null;
+    }, 3000);
+  }
 }
 
 // Добавляет ведущий ноль к числу даты.
