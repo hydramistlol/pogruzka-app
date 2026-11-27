@@ -220,6 +220,10 @@ h1 {
   color: #B67B4C;
 }
 
+.msg-save-success {
+  color: #3D705B;
+}
+
 .msg-no-updates {
   color: var(--accent);
 }
