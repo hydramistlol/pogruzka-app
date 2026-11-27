@@ -571,8 +571,8 @@ function getLoadedCodeFileUrls() {
   };
 }
 
-// Запоминает опубликованный код на момент открытия страницы.
-const initialCodeSnapshotPromise = captureCodeSnapshot(getLoadedCodeFileUrls(), "force-cache").catch(() => null);
+// Запоминает актуальные версии файлов, обходя кеш браузера.
+const initialCodeSnapshotPromise = captureCodeSnapshot(getLoadedCodeFileUrls(), "no-store").catch(() => null);
 
 // Получает самые свежие версии файлов сайта для ручной проверки.
 function getLatestCodeFileUrls() {
